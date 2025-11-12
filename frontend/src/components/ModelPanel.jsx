@@ -156,7 +156,7 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                 id={`file-${modelType}`}
                 className="file-input"
                 onChange={handleFileChange}
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.hwp"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.hwp,.ppt,.pptx"
                 disabled={loading || !apiKeySet}
               />
               <label htmlFor={`file-${modelType}`} className="file-label">
