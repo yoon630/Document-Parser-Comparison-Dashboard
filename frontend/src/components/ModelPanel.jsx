@@ -273,10 +273,24 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                     else if (result.result.rawResponse?.result?.elements) {
                       elements = result.result.rawResponse.result.elements;
                     }
-                    // Fallback: try structuredData
+                    // For Interex: try structuredData.result.elements
+                    else if (result.result.structuredData?.result?.elements) {
+                      elements = result.result.structuredData.result.elements;
+                    }
+                    // Fallback: try structuredData.elements
                     else if (result.result.structuredData?.elements) {
                       elements = result.result.structuredData.elements;
                     }
+
+                    // Additional logging for debugging
+                    console.log('Elements extraction debug:', {
+                      modelType: modelType,
+                      hasRawResponseElements: !!result.result.rawResponse?.elements,
+                      hasRawResponseResultElements: !!result.result.rawResponse?.result?.elements,
+                      hasStructuredDataResultElements: !!result.result.structuredData?.result?.elements,
+                      hasStructuredDataElements: !!result.result.structuredData?.elements,
+                      elementsCount: elements.length
+                    });
 
                     if (!elements || elements.length === 0) {
                       return <div className="parsing-empty">파싱된 요소가 없습니다.</div>;
@@ -308,16 +322,18 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                                   {table.page && ` - Page ${table.page}`}
                                 </div>
                                 <div className="parsing-item-content">
-                                  {table.content?.html && (
+                                  {/* Check both content.html and direct html field */}
+                                  {(table.content?.html || table.html) && (
                                     <div
                                       className="parsing-html"
-                                      dangerouslySetInnerHTML={{ __html: table.content.html }}
+                                      dangerouslySetInnerHTML={{ __html: table.content?.html || table.html }}
                                     />
                                   )}
-                                  {table.content?.text && (
+                                  {/* Check both content.text and direct text field */}
+                                  {(table.content?.text || table.text) && (
                                     <div className="parsing-text">
                                       <strong>텍스트:</strong>
-                                      <pre>{table.content.text}</pre>
+                                      <pre>{table.content?.text || table.text}</pre>
                                     </div>
                                   )}
                                 </div>
@@ -334,7 +350,8 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                               // Debug: log formula structure
                               console.log('Formula:', formula);
 
-                              const htmlContent = formula.content?.html;
+                              // Check both content.html and direct html field
+                              const htmlContent = formula.content?.html || formula.html;
                               console.log('HTML content:', htmlContent);
 
                               const renderedLatex = renderLatex(htmlContent);
@@ -369,10 +386,11 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                                       </div>
                                     )}
 
-                                    {formula.content?.text && (
+                                    {/* Check both content.text and direct text field */}
+                                    {(formula.content?.text || formula.text) && (
                                       <div className="parsing-text" style={{ marginTop: '1rem' }}>
                                         <strong>텍스트:</strong>
-                                        <pre>{formula.content.text}</pre>
+                                        <pre>{formula.content?.text || formula.text}</pre>
                                       </div>
                                     )}
                                   </div>
@@ -446,10 +464,11 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                                       </div>
                                     )}
 
-                                    {image.content?.html && (
+                                    {/* Check both content.html and direct html field */}
+                                    {(image.content?.html || image.html) && (
                                       <div
                                         className="parsing-html"
-                                        dangerouslySetInnerHTML={{ __html: image.content.html }}
+                                        dangerouslySetInnerHTML={{ __html: image.content?.html || image.html }}
                                       />
                                     )}
 

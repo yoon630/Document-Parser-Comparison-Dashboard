@@ -5,8 +5,8 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Parser Black-Box Analysis</h1>
-        <p>Input-Output Based Structural Inference for Document Parsers</p>
+        <h1>Parsing Solution Compare Dashboard</h1>
+        <p>Comparative Analysis of Document Parsing Solutions</p>
       </header>
 
       <div className="split-container">
