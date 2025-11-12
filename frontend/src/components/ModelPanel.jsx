@@ -156,7 +156,7 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                 id={`file-${modelType}`}
                 className="file-input"
                 onChange={handleFileChange}
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.hwp"
                 disabled={loading || !apiKeySet}
               />
               <label htmlFor={`file-${modelType}`} className="file-label">
@@ -181,7 +181,7 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
 
         {/* Error Display */}
         {error && (
-          <div className="error">
+          <div className="error" style={{ wordWrap: 'break-word', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             {error}
           </div>
         )}
@@ -586,12 +586,23 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                 )}
               </>
             ) : (
-              <div className="error">
+              <div className="error" style={{ wordWrap: 'break-word', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 <strong>에러:</strong> {result.result?.error}
                 {result.result?.errorDetails && (
                   <div style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
                     <strong>상세 정보:</strong>
-                    <pre style={{ marginTop: '0.5rem', background: '#fff', padding: '0.5rem', borderRadius: '4px' }}>
+                    <pre style={{
+                      marginTop: '0.5rem',
+                      background: '#fff',
+                      padding: '0.5rem',
+                      borderRadius: '4px',
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                      maxWidth: '100%',
+                      overflowX: 'auto'
+                    }}>
                       {JSON.stringify(result.result.errorDetails, null, 2)}
                     </pre>
                   </div>
