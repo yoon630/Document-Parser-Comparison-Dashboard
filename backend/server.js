@@ -7,7 +7,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 // ==================== Evaluation Metrics Functions ====================
 
@@ -278,7 +278,9 @@ async function callInterexDocumentAI(filePath, apiKey) {
     console.log('--- END FULL RESPONSE ---\n');
 
     // Check if Interex returned an error (even with HTTP 200)
-    if (response.data.code && response.data.code !== 'OK' && response.data.code !== 'SUCCESS') {
+    // Accept COMMON_SUCCESS, OK, SUCCESS as valid success codes
+    const validSuccessCodes = ['OK', 'SUCCESS', 'COMMON_SUCCESS'];
+    if (response.data.code && !validSuccessCodes.includes(response.data.code)) {
       console.error('Interex API returned an error code:', response.data.code);
       return {
         success: false,

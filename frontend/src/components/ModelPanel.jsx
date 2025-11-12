@@ -16,26 +16,40 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
   const renderLatex = (htmlContent) => {
     if (!htmlContent) return null;
 
-    // Extract LaTeX code from HTML (remove $ or $$ delimiters and HTML tags)
+    console.log('Original HTML content:', htmlContent);
+
+    // First, extract text from HTML tags
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+
+    console.log('Extracted text content:', textContent);
+
+    // Extract LaTeX code (remove $ or $$ delimiters)
     // Try double dollar signs first, then single dollar signs
-    let latexMatch = htmlContent.match(/\$\$(.*?)\$\$/);
+    let latexMatch = textContent.match(/\$\$([\s\S]*?)\$\$/);
     if (!latexMatch) {
-      latexMatch = htmlContent.match(/\$(.*?)\$/);
+      latexMatch = textContent.match(/\$([\s\S]*?)\$/);
     }
+
+    console.log('LaTeX match:', latexMatch);
 
     if (latexMatch && latexMatch[1]) {
       try {
         const latex = latexMatch[1];
+        console.log('LaTeX to render:', latex);
         const rendered = katex.renderToString(latex, {
           throwOnError: false,
           displayMode: true
         });
+        console.log('Rendered successfully');
         return rendered;
       } catch (e) {
         console.error('KaTeX rendering error:', e);
         return null;
       }
     }
+    console.log('No LaTeX found');
     return null;
   }
 
@@ -265,17 +279,17 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                     // Extract elements from response
                     let elements = [];
 
-                    // For Upstage: elements at top level
-                    if (result.result.rawResponse?.elements) {
-                      elements = result.result.rawResponse.elements;
+                    // For Interex: try structuredData.result.elements FIRST (has base64_encoding)
+                    if (result.result.structuredData?.result?.elements) {
+                      elements = result.result.structuredData.result.elements;
                     }
                     // For Interex: elements in result object
                     else if (result.result.rawResponse?.result?.elements) {
                       elements = result.result.rawResponse.result.elements;
                     }
-                    // For Interex: try structuredData.result.elements
-                    else if (result.result.structuredData?.result?.elements) {
-                      elements = result.result.structuredData.result.elements;
+                    // For Upstage: elements at top level
+                    else if (result.result.rawResponse?.elements) {
+                      elements = result.result.rawResponse.elements;
                     }
                     // Fallback: try structuredData.elements
                     else if (result.result.structuredData?.elements) {
@@ -296,12 +310,19 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                       return <div className="parsing-empty">파싱된 요소가 없습니다.</div>;
                     }
 
+                    // DEBUG: Show all unique categories and types
+                    const allCategories = [...new Set(elements.map(el => el.category))];
+                    const allTypes = [...new Set(elements.map(el => el.type))];
+                    console.log('🔍 ALL ELEMENT CATEGORIES:', allCategories);
+                    console.log('🔍 ALL ELEMENT TYPES:', allTypes);
+                    console.log('🔍 SAMPLE ELEMENTS:', elements.slice(0, 5));
+
                     // Categorize elements
                     const tables = elements.filter(el =>
                       el.category === 'table' || el.type === 'table'
                     );
                     const formulas = elements.filter(el =>
-                      el.category === 'equation' || el.category === 'formula' ||
+                      el.category === 'equation' || el.category === 'formula' || el.category === 'isolate_formula' ||
                       el.type === 'equation' || el.type === 'formula'
                     );
                     const images = elements.filter(el =>
@@ -348,13 +369,31 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                             <h4>🔢 수식 ({formulas.length}개)</h4>
                             {formulas.map((formula, idx) => {
                               // Debug: log formula structure
-                              console.log('Formula:', formula);
+                              console.log('FULL FORMULA OBJECT:', formula);
+                              console.log('FORMULA KEYS:', Object.keys(formula));
 
-                              // Check both content.html and direct html field
+                              // Check both content.text (for raw LaTeX) and content.html
+                              const latexText = formula.content?.text || formula.text;
                               const htmlContent = formula.content?.html || formula.html;
-                              console.log('HTML content:', htmlContent);
+                              console.log('LaTeX text:', latexText);
+                              console.log('HTML content for formula:', htmlContent);
 
-                              const renderedLatex = renderLatex(htmlContent);
+                              // If we have raw LaTeX text, render it directly
+                              let renderedLatex = null;
+                              if (latexText) {
+                                try {
+                                  renderedLatex = katex.renderToString(latexText, {
+                                    throwOnError: false,
+                                    displayMode: true
+                                  });
+                                  console.log('Rendered LaTeX from text successfully');
+                                } catch (e) {
+                                  console.error('KaTeX rendering error:', e);
+                                }
+                              } else if (htmlContent) {
+                                // Fallback: try to extract LaTeX from HTML
+                                renderedLatex = renderLatex(htmlContent);
+                              }
                               console.log('Rendered LaTeX:', renderedLatex);
 
                               return (
@@ -365,13 +404,19 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                                   </div>
                                   <div className="parsing-item-content">
                                     {/* Raw LaTeX Code */}
-                                    {htmlContent && (
+                                    {(latexText || htmlContent) && (
                                       <div className="parsing-text">
                                         <strong>LaTeX 코드:</strong>
-                                        <div
-                                          className="parsing-html formula"
-                                          dangerouslySetInnerHTML={{ __html: htmlContent }}
-                                        />
+                                        {latexText ? (
+                                          <pre style={{ background: '#f5f5f5', padding: '0.5rem', borderRadius: '4px', overflow: 'auto' }}>
+                                            {latexText}
+                                          </pre>
+                                        ) : (
+                                          <div
+                                            className="parsing-html formula"
+                                            dangerouslySetInnerHTML={{ __html: htmlContent }}
+                                          />
+                                        )}
                                       </div>
                                     )}
 
@@ -409,25 +454,53 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                               let imageData = null;
                               let imageType = 'png'; // default
 
+                              console.log('Processing image:', {
+                                hasBase64Encoding: !!image.base64_encoding,
+                                hasBase64: !!image.base64,
+                                hasImage: !!image.image,
+                                hasData: !!image.data,
+                                hasContentBase64Encoding: !!image.content?.base64_encoding,
+                                hasContentBase64: !!image.content?.base64,
+                                hasSrc: !!image.src,
+                                category: image.category,
+                                id: image.id
+                              });
+
+                              // Log the ENTIRE image object to see what fields it actually has
+                              console.log('FULL IMAGE OBJECT:', image);
+                              console.log('IMAGE KEYS:', Object.keys(image));
+
                               // Check for base64 data in different field names
-                              if (image.base64_encoding) {
+                              if (image.image_base64) {
+                                imageData = image.image_base64;
+                                console.log('Found image_base64 at top level, length:', imageData?.length);
+                              } else if (image.base64_encoding) {
                                 imageData = image.base64_encoding;
+                                console.log('Found base64_encoding at top level, length:', imageData?.length);
                               } else if (image.base64) {
                                 imageData = image.base64;
+                                console.log('Found base64 at top level, length:', imageData?.length);
                               } else if (image.image) {
                                 imageData = image.image;
+                                console.log('Found image at top level, length:', imageData?.length);
                               } else if (image.data) {
                                 imageData = image.data;
+                                console.log('Found data at top level, length:', imageData?.length);
                               } else if (image.content?.base64_encoding) {
                                 imageData = image.content.base64_encoding;
+                                console.log('Found base64_encoding in content, length:', imageData?.length);
                               } else if (image.content?.base64) {
                                 imageData = image.content.base64;
+                                console.log('Found base64 in content, length:', imageData?.length);
                               } else if (image.content?.image) {
                                 imageData = image.content.image;
+                                console.log('Found image in content, length:', imageData?.length);
                               } else if (image.content?.data) {
                                 imageData = image.content.data;
+                                console.log('Found data in content, length:', imageData?.length);
                               } else if (image.src) {
                                 imageData = image.src;
+                                console.log('Found src, value:', imageData?.substring(0, 100));
                               }
 
                               // Check for image type/format
@@ -435,6 +508,8 @@ function ModelPanel({ modelType, title, apiEndpoint }) {
                               else if (image.type && image.type !== 'figure' && image.type !== 'image') {
                                 imageType = image.type;
                               }
+
+                              console.log('Final imageData length:', imageData?.length, 'imageType:', imageType);
 
                               return (
                                 <div key={idx} className="parsing-item">
